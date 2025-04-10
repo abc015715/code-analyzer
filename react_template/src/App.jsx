@@ -1,64 +1,93 @@
-// src/App.jsx
-import { useState } from 'react';
-import { analyzeCode } from './services/api';
+import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-function App() {
-  const [code, setCode] = useState('');
-  const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
+// CodeBlock component for rendering code with syntax highlighting and copy button
+const CodeBlock = ({ language, value }) => {
+  const [copied, setCopied] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!code.trim()) {
-      alert('Please enter some code to analyze');
-      return;
-    }
-
-    setLoading(true);
+  const handleCopy = async () => {
     try {
-      const result = await analyzeCode(code);
-      setResponse(result);
-    } catch (error) {
-      setResponse('Error: Failed to analyze code. Please try again.');
-      console.error('Analysis error:', error);
-    } finally {
-      setLoading(false);
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-800">Code Analysis Tool</h1>
-        
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <textarea
-            className="w-full h-64 p-4 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Type your code here..."
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
-          
-          <button
-            className={`mt-4 px-6 py-2 rounded-lg text-white font-medium ${
-              loading 
-                ? 'bg-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? 'Analyzing...' : 'Analyze Code'}
-          </button>
-        </div>
+    <div className="relative group">
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 px-2 py-1 text-sm text-white bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+      <SyntaxHighlighter
+        language={language}
+        style={vscDarkPlus}
+        className="!bg-gray-800 rounded-lg"
+      >
+        {value}
+      </SyntaxHighlighter>
+    </div>
+  );
+};
 
-        {response && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Analysis Result</h2>
-            <pre className="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg text-sm">
-              {response}
-            </pre>
-          </div>
-        )}
+function App() {
+  // Sample markdown content with code blocks
+  const markdown = `
+# Example Markdown with Code
+
+Here's a JavaScript code example:
+
+\`\`\`javascript
+function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+
+const result = greet('World');
+console.log(result);
+\`\`\`
+
+And here's a Python example:
+
+\`\`\`python
+def factorial(n):
+    if n == 0:
+        return 1
+    return n * factorial(n - 1)
+
+result = factorial(5)
+print(f"Factorial of 5 is {result}")
+\`\`\`
+`;
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <ReactMarkdown
+          components={{
+            code({ node, inline, className, children, ...props }) {
+              const match = /language-(\w+)/.exec(className || '');
+              return !inline && match ? (
+                <CodeBlock
+                  language={match[1]}
+                  value={String(children).replace(/\n$/, '')}
+                  {...props}
+                />
+              ) : (
+                <code className="bg-gray-100 rounded px-1" {...props}>
+                  {children}
+                </code>
+              );
+            },
+          }}
+        >
+          {markdown}
+        </ReactMarkdown>
       </div>
     </div>
   );
